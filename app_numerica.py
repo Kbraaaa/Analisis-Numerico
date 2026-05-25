@@ -10,6 +10,14 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
+from Biseccion    import metodo_biseccion
+from FalsaPosicion import metodo_falsa_posicion
+from Newton       import metodo_newton, derivar_expr
+from Secante      import metodo_secante
+from PuntoFijo    import metodo_punto_fijo
+from Jacobi       import metodo_jacobi
+from GaussSeidel  import metodo_gauss_seidel
+
 # ── Paleta de colores ─────────────────────────────────────────────────────────
 C_BG       = "#1e2330"
 C_PANEL    = "#252b3b"
@@ -45,149 +53,6 @@ def evaluar(expr, x):
     env = {'x': x, '__builtins__': {}}
     env.update(MATH_ENV)
     return eval(expr, env)
-
-# ── Métodos: raíces de ecuaciones ─────────────────────────────────────────────
-
-def metodo_biseccion(f_expr, a, b, tol, max_iter):
-    fa = evaluar(f_expr, a)
-    fb = evaluar(f_expr, b)
-    if fa * fb >= 0:
-        raise ValueError("f(a) y f(b) deben tener signos opuestos.")
-    tabla, raiz = [], None
-    for i in range(1, max_iter + 1):
-        c  = (a + b) / 2
-        fc = evaluar(f_expr, c)
-        err = abs((b - a) / 2)
-        err_pct = abs(err / c) * 100 if abs(c) > 1e-15 else err
-        tabla.append({'iter': i, 'a': a, 'b': b, 'c': c, 'fc': fc, 'error': err_pct})
-        if abs(fc) < tol or err < tol:
-            raiz = c; break
-        fa = evaluar(f_expr, a)
-        if fa * fc < 0:
-            b = c
-        else:
-            a = c
-    else:
-        raiz = (a + b) / 2
-    return raiz, tabla
-
-def metodo_falsa_posicion(f_expr, a, b, tol, max_iter):
-    fa = evaluar(f_expr, a)
-    fb = evaluar(f_expr, b)
-    if fa * fb >= 0:
-        raise ValueError("f(a) y f(b) deben tener signos opuestos.")
-    tabla, raiz, c_prev = [], None, None
-    for i in range(1, max_iter + 1):
-        fa = evaluar(f_expr, a)
-        fb = evaluar(f_expr, b)
-        c  = b - fb * (b - a) / (fb - fa)
-        fc = evaluar(f_expr, c)
-        err = abs(c - c_prev) if c_prev is not None else abs(b - a)
-        err_pct = abs(err / c) * 100 if abs(c) > 1e-15 else err
-        tabla.append({'iter': i, 'a': a, 'b': b, 'c': c, 'fc': fc, 'error': err_pct})
-        if abs(fc) < tol or err < tol:
-            raiz = c; break
-        if fa * fc < 0:
-            b = c
-        else:
-            a = c
-        c_prev = c
-    else:
-        raiz = c
-    return raiz, tabla
-
-def metodo_newton(f_expr, df_expr, x0, tol, max_iter):
-    tabla, raiz = [], None
-    x = x0
-    for i in range(1, max_iter + 1):
-        fx  = evaluar(f_expr, x)
-        dfx = evaluar(df_expr, x)
-        if abs(dfx) < 1e-15:
-            raise ValueError(f"f'(x) ≈ 0 en x={x:.6f}. Prueba otro x₀.")
-        x_new = x - fx / dfx
-        err = abs(x_new - x)
-        err_pct = abs(err / x_new) * 100 if abs(x_new) > 1e-15 else err
-        tabla.append({'iter': i, 'a': x, 'b': x_new, 'c': x_new,
-                      'fc': evaluar(f_expr, x_new), 'error': err_pct})
-        if err < tol:
-            raiz = x_new; break
-        x = x_new
-    else:
-        raiz = x
-    return raiz, tabla
-
-def metodo_secante(f_expr, x0, x1, tol, max_iter):
-    tabla, raiz = [], None
-    for i in range(1, max_iter + 1):
-        fx0 = evaluar(f_expr, x0)
-        fx1 = evaluar(f_expr, x1)
-        if abs(fx1 - fx0) < 1e-15:
-            raise ValueError("División por cero (f(x1) - f(x0) ≈ 0).")
-        x2  = x1 - fx1 * (x1 - x0) / (fx1 - fx0)
-        err = abs(x2 - x1)
-        err_pct = abs(err / x2) * 100 if abs(x2) > 1e-15 else err
-        tabla.append({'iter': i, 'a': x0, 'b': x1, 'c': x2,
-                      'fc': evaluar(f_expr, x2), 'error': err_pct})
-        if err < tol:
-            raiz = x2; break
-        x0, x1 = x1, x2
-    else:
-        raiz = x1
-    return raiz, tabla
-
-def metodo_punto_fijo(g_expr, x0, tol, max_iter):
-    tabla, raiz = [], None
-    x = x0
-    for i in range(1, max_iter + 1):
-        x_new = evaluar(g_expr, x)
-        err = abs(x_new - x)
-        err_pct = abs(err / x_new) * 100 if abs(x_new) > 1e-15 else err
-        tabla.append({'iter': i, 'a': x, 'b': x_new, 'c': x_new,
-                      'fc': x_new - x, 'error': err_pct})
-        if err < tol:
-            raiz = x_new; break
-        x = x_new
-    else:
-        raiz = x
-    return raiz, tabla
-
-# ── Métodos: sistemas de ecuaciones lineales ──────────────────────────────────
-
-def metodo_jacobi(A, b, x0, max_iter, tol):
-    n = len(A)
-    x = x0[:]
-    tabla = []
-    for k in range(1, max_iter + 1):
-        x_new = [0.0] * n
-        for i in range(n):
-            if abs(A[i][i]) < 1e-15:
-                raise ValueError(f"Diagonal A[{i+1}][{i+1}] = 0. Reordena el sistema.")
-            s = sum(A[i][j] * x[j] for j in range(n) if j != i)
-            x_new[i] = (b[i] - s) / A[i][i]
-        error = max(abs(x_new[i] - x[i]) for i in range(n))
-        tabla.append({'iter': k, 'x': x_new[:], 'error': error})
-        if error < tol:
-            return x_new, tabla
-        x = x_new
-    return x, tabla
-
-def metodo_gauss_seidel(A, b, x0, max_iter, tol):
-    n = len(A)
-    x = x0[:]
-    tabla = []
-    for k in range(1, max_iter + 1):
-        x_new = x[:]
-        for i in range(n):
-            if abs(A[i][i]) < 1e-15:
-                raise ValueError(f"Diagonal A[{i+1}][{i+1}] = 0. Reordena el sistema.")
-            s = sum(A[i][j] * x_new[j] for j in range(n) if j != i)
-            x_new[i] = (b[i] - s) / A[i][i]
-        error = max(abs(x_new[i] - x[i]) for i in range(n))
-        tabla.append({'iter': k, 'x': x_new[:], 'error': error})
-        if error < tol:
-            return x_new, tabla
-        x = x_new
-    return x, tabla
 
 # ── Aplicación principal ──────────────────────────────────────────────────────
 
@@ -300,6 +165,7 @@ class AppNumerica(tk.Tk):
             self._card_func, "f'(x) =", "3*x**2 - 1")
         self._var_g,  self._ent_g  = self._labeled_entry(
             self._card_func, "g(x) =", "")
+        self._ent_f.bind("<FocusOut>", self._auto_derivar)
 
         # --- Parámetros ---
         self._par_outer, self._card_par = self._card(self._panel_izq, "Parámetros")
@@ -556,7 +422,7 @@ class AppNumerica(tk.Tk):
             hints = {
                 "Bisección":      ("x**3 - x - 2", "", ""),
                 "Falsa Posición": ("x**3 - x - 2", "", ""),
-                "Newton-Raphson": ("x**3 - x - 2", "3*x**2 - 1", ""),
+                "Newton-Raphson": ("x**3 - x - 2", "", ""),
                 "Secante":        ("x**3 - x - 2", "", ""),
                 "Punto Fijo":     ("x**3 - x - 2", "", "(x + 2)**(1/3)"),
             }
@@ -570,6 +436,23 @@ class AppNumerica(tk.Tk):
                 self._var_df.set(dfh)
             if not self._var_g.get() or self._var_g.get() in all_g:
                 self._var_g.set(gh)
+
+            if m == "Newton-Raphson":
+                self._auto_derivar()
+
+    # ── Derivación automática ─────────────────────────────────────────────────
+
+    def _auto_derivar(self, event=None):
+        if self._metodo_var.get() != "Newton-Raphson":
+            return
+        expr = self._var_f.get().strip()
+        if not expr:
+            return
+        try:
+            deriv = derivar_expr(expr)
+            self._var_df.set(deriv)
+        except Exception:
+            pass
 
     # ── Resolver ─────────────────────────────────────────────────────────────
 
