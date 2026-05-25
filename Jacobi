@@ -1,0 +1,53 @@
+def jacobi(A, b, x0, max_iter, tol):
+    n = len(A)
+    x = x0.copy()
+
+    print("\nIteración\tSolución\t\tError")
+
+    for k in range(max_iter):
+        x_nuevo = [0] * n
+
+        for i in range(n):
+            suma = 0
+            for j in range(n):
+                if j != i:
+                    suma += A[i][j] * x[j]  # usa SOLO valores anteriores
+
+            x_nuevo[i] = (b[i] - suma) / A[i][i]
+
+        error = max(abs(x_nuevo[i] - x[i]) for i in range(n))
+
+        print(f"{k}\t\t{x_nuevo}\t{error:.6f}")
+
+        if error < tol:
+            print("\nSolución aproximada:", x_nuevo)
+            return x_nuevo
+
+        x = x_nuevo
+
+    print("\nSe alcanzó el máximo de iteraciones")
+    print("Última aproximación:", x)
+    return x
+
+
+# --------------------------
+# PROGRAMA PRINCIPAL
+# --------------------------
+
+print("=== Método de Jacobi ===")
+
+n = int(input("Ingrese el número de ecuaciones: "))
+
+A = []
+print("Ingrese la matriz A:")
+for i in range(n):
+    fila = list(map(float, input(f"Fila {i+1}: ").split()))
+    A.append(fila)
+
+b = list(map(float, input("Ingrese el vector b: ").split()))
+x0 = list(map(float, input("Ingrese valores iniciales: ").split()))
+
+max_iter = int(input("Ingrese número máximo de iteraciones: "))
+tol = float(input("Ingrese tolerancia: "))
+
+jacobi(A, b, x0, max_iter, tol)
